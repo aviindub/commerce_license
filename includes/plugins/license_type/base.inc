@@ -170,6 +170,12 @@ abstract class CommerceLicenseBase extends Entity implements CommerceLicenseInte
   public $product_id;
 
   /**
+   * The id of the line item that spawned this license
+   *
+   * @var integer
+   */
+  public $line_item_id;
+  /**
    * The license status.
    *
    * @var integer
@@ -201,6 +207,17 @@ abstract class CommerceLicenseBase extends Entity implements CommerceLicenseInte
    * @var bool
    */
   public $expires_automatically = TRUE;
+
+  /**
+   * The quantity of licenses purchased
+   *
+   * This value is carried over from the line item, but can be changed in order
+   * to influence the next recurring cycle. The quantity on the next recurring
+   * order will be set from this value.
+   *
+   * @var int
+   */
+  public $quantity = 1;
 
   /**
    * License metadata wrapper.
@@ -298,6 +315,7 @@ abstract class CommerceLicenseBase extends Entity implements CommerceLicenseInte
       if ($duration > 0 && empty($this->expires)) {
         $this->expires = $this->granted + $duration;
       }
+      //TODO: consider firing a rules event here..."on license activation"
     }
 
     parent::save();
@@ -312,9 +330,69 @@ abstract class CommerceLicenseBase extends Entity implements CommerceLicenseInte
 }
 
 /**
+ * Class CommerceLicenseBillableBase
+ *
+ * adds billing related fields
+ */
+abstract class CommerceLicenseBillableBase extends CommerceLicenseBase {
+  /**
+   * Implements EntityBundlePluginProvideFieldsInterface::fields().
+   */
+  static function fields() {
+    $fields = parent::fields();
+    $fields['cl_billing_type']['field'] = array(
+      'type' => 'list_text',
+      'cardinality' => 1,
+      'translatable' => 0,
+      'module' => 'list',
+      'settings' => array(
+        'allowed_values' => array(
+          'prepaid' => 'Prepaid',
+          'postpaid' => 'Postpaid'
+        ),
+      ),
+    );
+    $fields['cl_billing_type']['instance'] = array(
+      'required' => TRUE,
+      'default_value' => array(
+        array('value' => 'prepaid'),
+      ),
+      'widget' => array(
+        'type' => 'options_buttons',
+        'module' => 'options',
+      ),
+    );
+    $fields['cl_billing_cycle_type']['field'] = array(
+      'type' => 'entityreference',
+      'cardinality' => 1,
+      'translatable' => 0,
+      'module' => 'entityreference',
+      'settings' => array(
+        'target_type' => 'cl_billing_cycle_type',
+        'handler' => 'base',
+      ),
+    );
+    $fields['cl_billing_cycle_type']['instance'] = array(
+      'label' => t('Billing Cycle'),
+      'required' => FALSE,
+      'settings' => array(),
+      'widget' => array(
+        'type' => 'text_textfield',
+      ),
+      'display' => array(
+        'display' => array(
+          'label' => 'hidden',
+        ),
+      ),
+    );
+    return $fields;
+  }
+}
+
+/**
  * Remote license base class.
  */
-abstract class CommerceLicenseRemoteBase extends CommerceLicenseBase implements CommerceLicenseSynchronizableInterface {
+abstract class CommerceLicenseRemoteBase extends CommerceLicenseBillableBase implements CommerceLicenseSynchronizableInterface {
 
   /**
    * Constructor.

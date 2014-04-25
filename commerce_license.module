@@ -355,7 +355,14 @@ function commerce_license_exists($product, $account = NULL) {
  */
 function commerce_license_commerce_line_item_presave($line_item) {
   // This is not a license line item type, stop here.
-  if (!in_array($line_item->type, commerce_license_line_item_types())) {
+  //if (!in_array($line_item->type, commerce_license_line_item_types())) {
+  //  return;
+  //}
+
+  // This is not a license line item, stop here.
+  if (empty($line_item->commerce_license_type)
+    && empty($line_item->commerce_license)
+    && empty($line_item->cl_billing_license)) {
     return;
   }
 
@@ -369,12 +376,23 @@ function commerce_license_commerce_line_item_presave($line_item) {
       $license->save();
     }
   }
+
   // The line item has no license, create it if the product is licensable.
-  if (empty($line_item->commerce_license) && !empty($product->commerce_license_type)) {
-    $type = $line_item_wrapper->commerce_product->commerce_license_type->value();
-    $license = entity_create('commerce_license', array('type' => $type));
+  //if (empty($line_item->commerce_license) && !empty($product->commerce_license_type)) {
+
+  // determine whether the license type comes from the line item or the product
+  $knower_of_license_type = !empty($product->commerce_license_type)
+    ? entity_metadata_wrapper('commerce_product', $product) : $line_item_wrapper;
+  // The line item has no license, create it if a license type has been set on the line item or product
+  if (empty($line_item->commerce_license) && !empty($knower_of_license_type->commerce_license_type)) {
+    $type = $knower_of_license_type->commerce_license_type->value();
+    $entity_values = array('type' => $type, 'line_item_id' => $line_item->line_item_id);
+    $license = entity_create('commerce_license', $entity_values);
     $license->product_id = $line_item_wrapper->commerce_product->product_id->value();
-    $license->uid = $GLOBALS['user']->uid;
+    $license->quantity = intval($line_item->quantity);
+    $order = commerce_order_load($line_item->order_id);
+    $license->uid = $order->uid;
+    //$license->line_item_id = $line_item->line_item_id;
     $license->save();
     $line_item_wrapper->commerce_license = $license;
   }
@@ -421,16 +439,26 @@ function commerce_license_commerce_order_update($order) {
 function commerce_license_activate_order_licenses($order) {
   $licenses = commerce_license_get_order_licenses($order);
   foreach ($licenses as $license) {
-    if ($license instanceof CommerceLicenseSynchronizableInterface) {
-      // Synchronizable licenses are actived after they have been synchronized.
-      $license->wrapper->status = COMMERCE_LICENSE_PENDING;
-      $license->wrapper->sync_status = COMMERCE_LICENSE_NEEDS_SYNC;
-      $license->save();
-    }
-    else {
-      $license->status = COMMERCE_LICENSE_ACTIVE;
-      $license->save();
-    }
+    commerce_license_activate_license($license);
+  }
+}
+
+/**
+ * Activates a single license
+ *
+ * @param CommerceLicense $license
+ *  The license to be activated
+ */
+function commerce_license_activate_license($license) {
+  if ($license instanceof CommerceLicenseSynchronizableInterface) {
+    // Synchronizable licenses are activated after they have been synchronized.
+    $license->wrapper->status = COMMERCE_LICENSE_PENDING;
+    $license->wrapper->sync_status = COMMERCE_LICENSE_NEEDS_SYNC;
+    $license->save();
+  }
+  else {
+    $license->status = COMMERCE_LICENSE_ACTIVE;
+    $license->save();
   }
 }
 
@@ -671,6 +699,7 @@ function commerce_license_configure_product_types($types) {
     field_create_field($field);
   }
 
+  //TODO: this could be replaced with instances on the licensable line item bundle(s)
   $existing = array();
   if (!empty($field['bundles']['commerce_product'])) {
     $existing = $field['bundles']['commerce_product'];
@@ -705,6 +734,8 @@ function commerce_license_configure_product_types($types) {
     field_create_field($field);
   }
 
+  //TODO: this could be replaced with instances on the licensable line item bundle(s)
+  //TODO: figure out how this is used
   $existing = array();
   if (!empty($field['bundles']['commerce_product'])) {
     $existing = $field['bundles']['commerce_product'];
@@ -818,9 +849,7 @@ function commerce_license_types_allowed_values($field, $instance, $entity_type, 
   $types = &drupal_static(__FUNCTION__, array());
   if (empty($types)) {
     foreach (commerce_license_get_type_plugins() as $plugin_name => $plugin_info) {
-      if (empty($plugin_info['no ui'])) {
-        $types[$plugin_name] = $plugin_info['title'];
-      }
+      $types[$plugin_name] = $plugin_info['title'];
     }
 
     // Allow the list to be altered.

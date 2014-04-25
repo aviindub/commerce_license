@@ -46,6 +46,14 @@ class CommerceLicenseMetadataController extends EntityDefaultMetadataController 
       'required' => TRUE,
       'schema field' => 'product_id',
     );
+    $properties['line_item'] = array(
+      'type' => 'commerce_line_item',
+      'label' => t('Line Item'),
+      'description' => t('The line item that spawned this license.'),
+      'setter callback' => 'entity_property_verbatim_set',
+      'required' => TRUE,
+      'schema field' => 'line_item_id',
+    );
     $properties['status'] = array(
       'type' => 'integer',
       'label' => t('Status'),
@@ -72,6 +80,13 @@ class CommerceLicenseMetadataController extends EntityDefaultMetadataController 
       'label' => t('Access details'),
       'description' => t('The access details of an activated license.'),
       'getter callback' => 'commerce_license_get_access_details',
+    );
+    $properties['quantity'] = array(
+      'type' => 'integer',
+      'label' => t('Quantity'),
+      'description' => t('The quantity of licenses purchased.'),
+      'required' => TRUE,
+      'schema field' => 'quantity',
     );
 
     return $info;

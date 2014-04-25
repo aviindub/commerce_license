@@ -40,6 +40,12 @@ function commerce_license_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'line_item_id' => array(
+        'description' => 'The {commerce_line_item}.line_item_id that spawned the license.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
       'status' => array(
         'description' => 'The license status.',
         'type' => 'int',
@@ -63,6 +69,12 @@ function commerce_license_schema() {
         'description' => 'Whether the module should expire the license automatically.',
         'type' => 'int',
         'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'quantity' => array(
+        'description' => 'The quantity of licenses purchased.',
+        'type' => 'int',
         'not null' => TRUE,
         'default' => 1,
       ),
@@ -114,12 +126,24 @@ function commerce_license_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'line_item_id' => array(
+        'description' => 'The {commerce_line_item}.line_item_id that spawned the license.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
       'status' => array(
         'description' => 'The license status for this revision.',
         'type' => 'int',
         'size' => 'tiny',
         'not null' => TRUE,
         'default' => 0,
+      ),
+      'quantity' => array(
+        'description' => 'The quantity of licenses for this revision.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
       ),
       'revision_created' => array(
         'description' => 'The Unix timestamp when the revision was created.',
@@ -329,4 +353,32 @@ function commerce_license_update_7102(&$sandbox) {
       field_update_instance($instance);
     }
   }
+}
+
+/**
+ * Add the 'quantity' column to the commerce_license & _revision tables.
+ */
+function commerce_license_update_7103() {
+  $spec = array(
+    'description' => 'The quantity of licenses purchased.',
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 1,
+  );
+  db_add_field('commerce_license', 'quantity', $spec);
+  db_add_field('commerce_license_revision', 'quantity', $spec);
+}
+
+/**
+ * Add the 'line_item_id' column to the commerce_license & _revision tables.
+ */
+function commerce_license_update_7104() {
+  $spec = array(
+    'description' => 'The {commerce_line_item}.line_item_id that spawned the license.',
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field('commerce_license', 'line_item_id', $spec);
+  db_add_field('commerce_license_revision', 'line_item_id', $spec);
 }
